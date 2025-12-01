@@ -1,0 +1,61 @@
+import sqlite3
+from typing import Optional
+import os
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "app.db")
+
+class Database:
+    def __init__(self, path: Optional[str] = None):
+        self.path = path or DB_PATH
+        self.conn = sqlite3.connect(self.path, check_same_thread=False)
+        self.conn.row_factory = sqlite3.Row
+        self._ensure_tables()
+
+    def _ensure_tables(self):
+        cur = self.conn.cursor()
+        cur.executescript("""
+        PRAGMA foreign_keys = ON;
+        CREATE TABLE IF NOT EXISTS usuario (
+            id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            senha_hash TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS produto (
+            id_produto INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            categoria TEXT,
+            marca TEXT
+        );
+        CREATE TABLE IF NOT EXISTS supermercado (
+            id_mercado INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            endereco TEXT
+        );
+        CREATE TABLE IF NOT EXISTS preco (
+            id_preco INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_produto INTEGER NOT NULL,
+            id_mercado INTEGER NOT NULL,
+            preco REAL NOT NULL,
+            data_coleta TEXT NOT NULL,
+            FOREIGN KEY (id_produto) REFERENCES produto(id_produto),
+            FOREIGN KEY (id_mercado) REFERENCES supermercado(id_mercado)
+        );
+        """)
+        self.conn.commit()
+
+    def execute(self, sql, params=()):
+        cur = self.conn.cursor()
+        cur.execute(sql, params)
+        self.conn.commit()
+        return cur
+
+    def query(self, sql, params=()):
+        cur = self.conn.cursor()
+        cur.execute(sql, params)
+        return cur.fetchall()
+
+    def close(self):
+        self.conn.close()
+
+
